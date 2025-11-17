@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Proximity Beacon Navigator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'light-bg': '#f3f4f6',
+              'light-card': '#ffffff',
+              'light-text': '#1f2937',
+              'light-subtext': '#6b7280',
+              'light-primary': '#3b82f6',
+              'light-accent': '#10b981',
+              'dark-bg': '#111827',
+              'dark-card': '#1f2937',
+              'dark-text': '#f9fafb',
+              'dark-subtext': '#9ca3af',
+              'dark-primary': '#60a5fa',
+              'dark-accent': '#34d399',
+            },
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-light-bg dark:bg-dark-bg">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

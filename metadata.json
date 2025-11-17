@@ -1,0 +1,5 @@
+{
+  "name": "Proximity Beacon Navigator",
+  "description": "A mobile application that simulates Bluetooth Low Energy (BLE) beacons to deliver personalized, real-time notifications based on user proximity. It detects simulated beacon signals, identifies the user’s location, and automatically shows relevant content for a museum context.",
+  "requestFramePermissions": []
+}
