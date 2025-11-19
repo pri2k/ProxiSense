@@ -1,24 +1,33 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { HomeScreen } from './components/HomeScreen';
 import { QosScreen } from './components/QosScreen';
-import { DetectedBeacon, AppNotification, UserPreferences, QosMetrics, BeaconCategory, Beacon } from './types';
-import { simulateScan, generatePersonalizedMessage, manuallyDetectBeacon, MOCK_BEACONS } from './services/beaconService';
+import { SettingsScreen } from './components/SettingsScreen';
+import { NotificationsPanel } from './components/NotificationsPanel';
+import { CouponModal } from './components/CoupanModal';
+import { MallMap } from './components/MallMap';
+
+import { DetectedBeacon, AppNotification, UserPreferences, QosMetrics, BeaconCategory, Beacon, Coupon } from './types';
+import { simulateScan, generatePersonalizedMessage, manuallyDetectBeacon, MOCK_BEACONS, getCouponForBeacon, redeemCoupon, getBeaconById } from './services/beaconService';
 
 type Theme = 'light' | 'dark';
-type ActiveTab = 'home' | 'qos';
+type ActiveTab = 'home' | 'map' | 'notifications' | 'settings' | 'qos';
+
+const defaultPrefs: UserPreferences = {
+  interests: new Set(['Fashion']),
+  notificationsEnabled: true,
+  doNotDisturb: false,
+  cooldownSeconds: 20,
+  offlineMode: false,
+  largeText: false,
+};
 
 const ThemeToggle: React.FC<{ theme: Theme; toggleTheme: () => void }> = ({ theme, toggleTheme }) => {
   return (
-    <button onClick={toggleTheme} className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-light-text dark:text-dark-text">
-      {theme === 'light' ? (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-      ) : (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-      )}
-    </button>
+      <button onClick={toggleTheme} className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-light-text dark:text-dark-text">
+          {theme === 'light' ? '🌞' : '🌙'}
+      </button>
   );
 };
-
 
 function App() {
   const [theme, setTheme] = useState<Theme>('light');
@@ -27,7 +36,29 @@ function App() {
   const [detectedBeacons, setDetectedBeacons] = useState<DetectedBeacon[]>([]);
   const [nearestBeacon, setNearestBeacon] = useState<DetectedBeacon | null>(null);
   const [lastNotification, setLastNotification] = useState<AppNotification | null>(null);
-  const [userPreferences, setUserPreferences] = useState<UserPreferences>({ interests: new Set(['Fashion']) });
+
+  const [userPreferences, setUserPreferences] = useState<UserPreferences>(() => {
+    try {
+      const raw = localStorage.getItem('prefs');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        parsed.interests = new Set(parsed.interests || []);
+        return { ...defaultPrefs, ...parsed };
+      }
+    } catch {}
+    return defaultPrefs;
+  });
+
+  const [notificationsHistory, setNotificationsHistory] = useState<AppNotification[]>(() => {
+    try {
+      const raw = localStorage.getItem('notifications');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  });
+
+  const [couponToShow, setCouponToShow] = useState<Coupon | null>(null);
+
   const [qosMetrics, setQosMetrics] = useState<QosMetrics>({
     latency: null,
     notificationCount: 0,
@@ -35,48 +66,88 @@ function App() {
     signalLogs: [],
   });
 
+  // map highlight id used to center map on request
+  const [mapHighlightId, setMapHighlightId] = useState<string | null>(null);
+
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (theme === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
-  };
+  // persist preferences & notifications
+  useEffect(() => {
+    try {
+      const toSave = { ...userPreferences, interests: Array.from(userPreferences.interests) };
+      localStorage.setItem('prefs', JSON.stringify(toSave));
+    } catch {}
+  }, [userPreferences]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('notifications', JSON.stringify(notificationsHistory));
+    } catch {}
+  }, [notificationsHistory]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+
+  const applyCooldownFilter = useCallback((prefs: UserPreferences, existing: AppNotification[]) => {
+    if (!prefs.cooldownSeconds) return true;
+    const last = existing.length > 0 ? existing[existing.length - 1] : null;
+    if (!last) return true;
+    return (Date.now() - last.timestamp) / 1000 > (prefs.cooldownSeconds || 0);
+  }, []);
 
   const handleNewBeaconState = useCallback((beacons: DetectedBeacon[], detectionTime: number) => {
-    beacons.sort((a, b) => b.rssi - a.rssi);
+    beacons.sort((a,b) => b.rssi - a.rssi);
     setDetectedBeacons(beacons);
-
     const newNearest = beacons.length > 0 ? beacons[0] : null;
+
+    if (!userPreferences.notificationsEnabled || userPreferences.doNotDisturb) {
+      setNearestBeacon(newNearest);
+      return;
+    }
+
+    if (userPreferences.offlineMode) {
+      setNearestBeacon(newNearest);
+      return;
+    }
 
     if (newNearest && newNearest.id !== nearestBeacon?.id) {
       setNearestBeacon(newNearest);
 
+      // check cooldown
+      if (!applyCooldownFilter(userPreferences, notificationsHistory)) return;
+
       const message = generatePersonalizedMessage(newNearest, userPreferences);
+      const coupon = getCouponForBeacon(newNearest.id);
+
       const notification: AppNotification = {
         id: Date.now(),
         beacon: newNearest,
         message,
         timestamp: Date.now(),
+        type: 'in-app',
+        couponId: coupon?.id ?? null,
+        redeemed: false,
       };
       setLastNotification(notification);
-
-      const latency = Date.now() - detectionTime;
+      setNotificationsHistory(prev => [...prev, notification]);
       setQosMetrics(prev => ({
         ...prev,
-        latency: latency,
+        latency: Date.now() - detectionTime,
         notificationCount: prev.notificationCount + 1,
       }));
+
+      // auto-open coupon modal if coupon present
+      if (coupon) {
+        setCouponToShow(coupon);
+      }
     } else if (!newNearest) {
       setNearestBeacon(null);
     } else if (newNearest) {
       setNearestBeacon(newNearest);
     }
-  }, [nearestBeacon, userPreferences]);
+  }, [nearestBeacon, userPreferences, notificationsHistory, applyCooldownFilter]);
 
   useEffect(() => {
     const scanInterval = setInterval(() => {
@@ -84,7 +155,7 @@ function App() {
       simulateScan((beacons, logs) => {
         setQosMetrics(prev => ({
           ...prev,
-          signalLogs: [...prev.signalLogs, ...logs.map(log => ({ ...log, timestamp: Date.now() }))].slice(-100),
+          signalLogs: [...prev.signalLogs, ...logs.map(l => ({ ...l, timestamp: Date.now() }))].slice(-200),
         }));
         handleNewBeaconState(beacons, detectionTime);
       });
@@ -98,7 +169,7 @@ function App() {
     const beacon = manuallyDetectBeacon(beaconId);
     setQosMetrics(prev => ({
       ...prev,
-      signalLogs: [...prev.signalLogs, { beaconId: beacon.id, rssi: beacon.rssi, status: 'online' as const, timestamp: Date.now() }].slice(-100),
+      signalLogs: [...prev.signalLogs, { beaconId: beacon.id, rssi: beacon.rssi, status: 'online', timestamp: Date.now() }].slice(-200),
     }));
     handleNewBeaconState(detectedBeacons.filter(b => b.id !== beacon.id).concat(beacon), detectionTime);
   };
@@ -106,56 +177,99 @@ function App() {
   const handleUpdatePreferences = (category: BeaconCategory) => {
     setUserPreferences(prev => {
       const newInterests = new Set(prev.interests);
-      if (newInterests.has(category)) {
-        newInterests.delete(category);
-      } else {
-        newInterests.add(category);
-      }
-      return { interests: newInterests };
+      if (newInterests.has(category)) newInterests.delete(category);
+      else newInterests.add(category);
+      return { ...prev, interests: newInterests };
     });
   };
 
+  const handlePrefsChange = (prefs: UserPreferences) => {
+    setUserPreferences(prefs);
+  };
+
+  const handleDismissNotification = (id: number) => {
+    setNotificationsHistory(prev => prev.filter(n => n.id !== id));
+  };
+
+  const handleRedeem = (couponId: string) => {
+    const used = redeemCoupon(couponId);
+    setNotificationsHistory(prev => prev.map(n => n.couponId === couponId ? { ...n, redeemed: true } : n));
+    setCouponToShow(used ?? null);
+    alert('Coupon redeemed (simulated).');
+  };
+
+  const handleShowCoupon = (beaconId: string) => {
+    const c = getCouponForBeacon(beaconId);
+    setCouponToShow(c ?? null);
+    if (!c) alert('No coupon available for this store right now.');
+  };
+
+  // NEW: navigate to map & highlight/center on store
+  const handleNavigateTo = (beaconId: string) => {
+    const b = getBeaconById(beaconId);
+    if (b && b.floor) {
+      setMapHighlightId(beaconId);
+      setActiveTab('map');
+      // map component will pick up mapHighlightId and center/highlight automatically
+    } else {
+      setMapHighlightId(beaconId);
+      setActiveTab('map');
+    }
+  };
+
   const recommendations = useMemo(() => {
-    return MOCK_BEACONS.filter(beacon => userPreferences.interests.has(beacon.category) && beacon.category !== 'Entrance');
+    return MOCK_BEACONS.filter(b => userPreferences.interests.has(b.category) && b.category !== 'Entrance');
   }, [userPreferences.interests]);
 
   return (
-    <div className="min-h-screen bg-light-bg dark:bg-dark-bg transition-colors duration-300">
-      <div className="max-w-2xl mx-auto">
+    <div className={`${userPreferences.largeText ? 'text-lg' : ''} min-h-screen bg-light-bg dark:bg-dark-bg transition-colors duration-300`}>
+      <div className="max-w-3xl mx-auto">
         <header className="flex justify-between items-center p-4 sticky top-0 bg-light-bg/80 dark:bg-dark-bg/80 backdrop-blur-sm z-10 border-b border-gray-200 dark:border-gray-700">
-          <h1 className="text-2xl font-bold text-light-text dark:text-dark-text">
-            Mall Beacon Navigator
-          </h1>
-          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+          <h1 className="text-2xl font-bold text-light-text dark:text-dark-text">Mall Beacon Navigator</h1>
+          <div className="flex items-center gap-2">
+            <ThemeToggle theme={theme} toggleTheme={() => setTheme(t => t === 'light' ? 'dark' : 'light')} />
+            <div className="hidden sm:flex gap-2">
+              <button onClick={() => setActiveTab('home')} className={`px-3 py-1 ${activeTab === 'home' ? 'underline' : ''}`}>Home</button>
+              <button onClick={() => setActiveTab('map')} className={`px-3 py-1 ${activeTab === 'map' ? 'underline' : ''}`}>Map</button>
+              <button onClick={() => setActiveTab('notifications')} className={`px-3 py-1 ${activeTab === 'notifications' ? 'underline' : ''}`}>History</button>
+              <button onClick={() => setActiveTab('settings')} className={`px-3 py-1 ${activeTab === 'settings' ? 'underline' : ''}`}>Settings</button>
+              <button onClick={() => setActiveTab('qos')} className={`px-3 py-1 ${activeTab === 'qos' ? 'underline' : ''}`}>QoS</button>
+            </div>
+          </div>
         </header>
-        <nav className="flex justify-center border-b border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => setActiveTab('home')}
-            className={`px-6 py-3 font-semibold ${activeTab === 'home' ? 'text-light-primary dark:text-dark-primary border-b-2 border-light-primary dark:border-dark-primary' : 'text-light-subtext dark:text-dark-subtext'}`}
-          >
-            Home
-          </button>
-          <button
-            onClick={() => setActiveTab('qos')}
-            className={`px-6 py-3 font-semibold ${activeTab === 'qos' ? 'text-light-primary dark:text-dark-primary border-b-2 border-light-primary dark:border-dark-primary' : 'text-light-subtext dark:text-dark-subtext'}`}
-          >
-            QoS Dashboard
-          </button>
-        </nav>
+
         <main>
           {activeTab === 'home' && (
             <HomeScreen
               nearestBeacon={nearestBeacon}
-              lastNotification={lastNotification}
+              lastNotification={notificationsHistory[notificationsHistory.length - 1] ?? null}
               userPreferences={userPreferences}
               onUpdatePreferences={handleUpdatePreferences}
               onManualDetect={handleManualDetect}
+              onShowCoupon={handleShowCoupon}
+              onNavigateTo={handleNavigateTo} // pass navigate function
               recommendations={recommendations}
             />
           )}
+
+          {activeTab === 'map' && (
+            <MallMap beacons={MOCK_BEACONS} onSelect={(id) => { handleManualDetect(id); }} highlightedBeaconId={mapHighlightId} />
+          )}
+
+          {activeTab === 'notifications' && (
+            <NotificationsPanel notifications={notificationsHistory} onDismiss={handleDismissNotification} onRedeem={handleRedeem} />
+          )}
+
+          {activeTab === 'settings' && (
+            <SettingsScreen prefs={userPreferences} onUpdate={handlePrefsChange} />
+          )}
+
           {activeTab === 'qos' && <QosScreen metrics={qosMetrics} />}
+
         </main>
       </div>
+
+      <CouponModal coupon={couponToShow} onClose={() => setCouponToShow(null)} onUse={(id) => handleRedeem(id)} />
     </div>
   );
 }

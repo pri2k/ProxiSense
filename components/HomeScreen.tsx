@@ -8,6 +8,8 @@ interface HomeScreenProps {
   userPreferences: UserPreferences;
   onUpdatePreferences: (category: BeaconCategory) => void;
   onManualDetect: (beaconId: string) => void;
+  onShowCoupon: (beaconId: string) => void;
+  onNavigateTo: (beaconId: string) => void; // NEW: navigate user to map & center
   recommendations: Beacon[];
 }
 
@@ -36,7 +38,7 @@ const SignalStrength: React.FC<{ rssi: number }> = ({ rssi }) => {
   );
 };
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ nearestBeacon, lastNotification, userPreferences, onUpdatePreferences, onManualDetect, recommendations }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ nearestBeacon, lastNotification, userPreferences, onUpdatePreferences, onManualDetect, onShowCoupon, onNavigateTo, recommendations }) => {
   const [manualBeaconId, setManualBeaconId] = React.useState<string>(MOCK_BEACONS[0]?.id || '');
 
   const handleManualDetect = () => {
@@ -67,6 +69,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ nearestBeacon, lastNotif
                 <SignalStrength rssi={nearestBeacon.rssi} />
                 <span className="text-sm font-mono">{nearestBeacon.rssi} dBm</span>
               </div>
+            </div>
+            <div className="flex gap-2 pt-3">
+              <button onClick={() => onShowCoupon(nearestBeacon.id)} className="px-3 py-1 bg-light-accent text-white rounded">View Coupon</button>
+              <button onClick={() => onNavigateTo(nearestBeacon.id)} className="px-3 py-1 border rounded">Get Directions</button>
             </div>
           </div>
         ) : (
