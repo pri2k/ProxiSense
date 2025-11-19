@@ -1,13 +1,107 @@
-import { Beacon, DetectedBeacon, Proximity, BeaconCategory, UserPreferences } from '../types';
+import { Beacon, DetectedBeacon, Proximity, UserPreferences, Coupon } from '../types';
 
 export const MOCK_BEACONS: Beacon[] = [
-  { id: 'M001', uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825', major: 100, minor: 1, location: 'Mall Entrance', category: 'Entrance' },
-  { id: 'M002', uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825', major: 200, minor: 1, location: 'Fashion Avenue - Zara', category: 'Fashion' },
-  { id: 'M003', uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825', major: 200, minor: 2, location: 'ElectroWorld - Ground Floor', category: 'Electronics' },
-  { id: 'M004', uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825', major: 300, minor: 1, location: 'Food Court', category: 'Food' },
-  { id: 'M005', uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825', major: 300, minor: 2, location: 'FreshMart Grocery', category: 'Grocery' },
-  { id: 'M006', uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825', major: 400, minor: 1, location: 'Kids Play Zone', category: 'Kids' },
-  { id: 'M007', uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825', major: 400, minor: 2, location: 'Cineplex - Multiplex', category: 'Entertainment' },
+  // Floor 1 (Ground)
+  {
+    id: 'M001',
+    uuid: 'FDA50693-A4E2-4FB1-AFCF-C6EB07647825',
+    major: 100,
+    minor: 1,
+    location: 'Main Entrance',
+    category: 'Entrance',
+    x: 8,
+    y: 8,
+    w: 18,
+    h: 12,
+    floor: 1,
+    description: 'Main entrance lobby with info desk and directory kiosks.',
+  },
+  {
+    id: 'M002',
+    uuid: 'FDA...7825',
+    major: 200,
+    minor: 1,
+    location: 'Fashion Avenue - Zara',
+    category: 'Fashion',
+    x: 30,
+    y: 10,
+    w: 22,
+    h: 14,
+    floor: 1,
+    description: 'Women & men clothing, new season arrivals.',
+  },
+  {
+    id: 'M003',
+    uuid: 'FDA...7825',
+    major: 200,
+    minor: 2,
+    location: 'ElectroWorld',
+    category: 'Electronics',
+    x: 58,
+    y: 8,
+    w: 28,
+    h: 18,
+    floor: 1,
+    description: 'Phones, laptops, accessories and in-store demos.',
+  },
+  {
+    id: 'M004',
+    uuid: 'FDA...7825',
+    major: 300,
+    minor: 1,
+    location: 'Food Court',
+    category: 'Food',
+    x: 20,
+    y: 35,
+    w: 60,
+    h: 20,
+    floor: 1,
+    description: 'Multiple cuisines, seating area, and restrooms nearby.',
+  },
+
+  // Floor 2
+  {
+    id: 'M005',
+    uuid: 'FDA...7825',
+    major: 300,
+    minor: 2,
+    location: 'FreshMart',
+    category: 'Grocery',
+    x: 10,
+    y: 10,
+    w: 24,
+    h: 16,
+    floor: 2,
+    description: 'Daily essentials and fresh produce.',
+  },
+  {
+    id: 'M006',
+    uuid: 'FDA...7825',
+    major: 400,
+    minor: 1,
+    location: 'Kids Play Zone',
+    category: 'Kids',
+    x: 40,
+    y: 10,
+    w: 30,
+    h: 20,
+    floor: 2,
+    description: 'Supervised play area and family services.',
+  },
+  {
+    id: 'M007',
+    uuid: 'FDA...7825',
+    major: 400,
+    minor: 2,
+    location: 'Cineplex',
+    category: 'Entertainment',
+    x: 10,
+    y: 40,
+    w: 72,
+    h: 28,
+    floor: 2,
+    description: 'Multiplex with several screens and ticket counters.',
+  },
 ];
 
 const getProximity = (rssi: number): Proximity => {
@@ -25,55 +119,72 @@ export const generatePersonalizedMessage = (beacon: Beacon, preferences: UserPre
   const isPreferred = preferences.interests.has(beacon.category);
   switch (beacon.category) {
     case 'Entrance':
-      return 'Welcome to Grand Mall! Check today’s top deals and maps on the app.';
+      return 'Welcome to Grand Mall! See today’s highlights and an interactive map.';
     case 'Fashion':
       return isPreferred
-        ? `Deal for you: Extra 15% off at ${beacon.location}. Tap to view coupon and directions.`
-        : `${beacon.location} has new arrivals — tap to view offers and sizes available.`;
+        ? `Special: Extra 15% off at ${beacon.location}. Tap for coupon & directions.`
+        : `Visit ${beacon.location} for latest fashion.`;
     case 'Electronics':
       return isPreferred
-        ? `Hot pick: Discount on latest headphones at ${beacon.location}. See specs and price.`
-        : `Explore electronics at ${beacon.location}. Exclusive in-store bundles available.`;
+        ? `Deal: Accessories on discount at ${beacon.location}.`
+        : `Explore electronics at ${beacon.location}.`;
     case 'Food':
       return isPreferred
-        ? `Hungry? ${beacon.location} has a 2-for-1 lunch combo — show this notification to redeem.`
-        : `Check out the Food Court for a variety of cuisines and quick snacks.`;
+        ? `Today’s special at Food Court: 2-for-1 on selected meals.`
+        : `Food Court: many options available nearby.`;
     case 'Grocery':
       return isPreferred
-        ? `Save 20% on fresh produce at ${beacon.location}. Limited time offer today.`
-        : `FreshMart Grocery nearby. Get essentials and ready-to-eat meals.`;
+        ? `FreshMart: 20% off produce today.`
+        : `FreshMart: groceries and essentials.`;
     case 'Kids':
       return isPreferred
-        ? `Kids zone special: Buy 1 get 1 on selected toys at ${beacon.location}.`
-        : `Family-friendly area: ${beacon.location} has supervised playtime and snacks.`;
+        ? `Kids Play Zone: discounted entry for families today.`
+        : `Kids Play Zone: family-friendly activities.`;
     case 'Entertainment':
       return isPreferred
-        ? `Movies & more: ${beacon.location} is showing a special screening — grab tickets in-app.`
-        : `Catch the latest movies at ${beacon.location}. Check showtimes and offers.`;
+        ? `Cineplex: special screening & offers on tickets.`
+        : `Cineplex: check showtimes and book in-app.`;
     default:
-      return `You're near ${beacon.location}. Open the app for offers and directions.`;
+      return `Nearby: ${beacon.location}. Open the app for details and directions.`;
   }
 };
 
 let detected: Map<string, DetectedBeacon> = new Map();
 let offlineBeacons: Set<string> = new Set();
 
+// coupons (unchanged from previous example)
+export const MOCK_COUPONS: Coupon[] = [
+  { id: 'C-FASH-1', beaconId: 'M002', title: '15% off at Fashion Avenue', code: 'FASH15', description: 'Valid today in-store', expiresAt: null, used: false },
+  { id: 'C-FOOD-1', beaconId: 'M004', title: '2-for-1 Lunch Combo', code: 'LUNCH2', description: 'Redeem at Food Court counter', expiresAt: null, used: false },
+  { id: 'C-GROC-1', beaconId: 'M005', title: '20% off Fresh Produce', code: 'FRESH20', description: 'Show app at checkout', expiresAt: null, used: false },
+];
+
+export const getCouponForBeacon = (beaconId: string): Coupon | undefined => {
+  return MOCK_COUPONS.find(c => c.beaconId === beaconId && !c.used);
+};
+
+export const redeemCoupon = (couponId: string): Coupon | undefined => {
+  const c = MOCK_COUPONS.find(x => x.id === couponId);
+  if (c) c.used = true;
+  return c;
+};
+
 export const simulateScan = (callback: (detectedBeacons: DetectedBeacon[], logs: { beaconId: string; rssi: number; status: 'online' | 'offline' }[]) => void) => {
   const logs: { beaconId: string; rssi: number; status: 'online' | 'offline' }[] = [];
 
-  if (Math.random() < 0.1 && detected.size > 0) {
+  if (Math.random() < 0.08 && detected.size > 0) {
     const beaconToDrop = Array.from(detected.values())[Math.floor(Math.random() * detected.size)];
     detected.delete(beaconToDrop.id);
     offlineBeacons.add(beaconToDrop.id);
     logs.push({ beaconId: beaconToDrop.id, rssi: -100, status: 'offline' });
   }
 
-  if (Math.random() < 0.2 && offlineBeacons.size > 0) {
+  if (Math.random() < 0.18 && offlineBeacons.size > 0) {
     const beaconToRevive = Array.from(offlineBeacons)[0];
     offlineBeacons.delete(beaconToRevive);
   }
 
-  if (Math.random() < 0.3 && detected.size < 4) {
+  if (Math.random() < 0.35 && detected.size < 4) {
     const availableBeacons = MOCK_BEACONS.filter(b => !detected.has(b.id) && !offlineBeacons.has(b.id));
     if (availableBeacons.length > 0) {
       const newBeacon = availableBeacons[Math.floor(Math.random() * availableBeacons.length)];
@@ -118,4 +229,9 @@ export const manuallyDetectBeacon = (beaconId: string): DetectedBeacon => {
   detected.set(beaconId, detectedBeacon);
 
   return detectedBeacon;
+};
+
+// helper: get beacon by id
+export const getBeaconById = (id: string): Beacon | undefined => {
+  return MOCK_BEACONS.find(b => b.id === id);
 };
