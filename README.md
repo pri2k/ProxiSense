@@ -1,20 +1,54 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# **ProxiSense — BLE-Based Contextual Notification System**
 
-# Run and deploy your AI Studio app
+A lightweight system that uses **BLE beacons** and **GPS geofencing** to deliver **real-time, personalized notifications** to users inside indoor environments such as malls.
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/drive/1J248rXh-7Ya0EBMO7l4ujZZpd7NZkPX7
+## ⭐ **Features**
 
-## Run Locally
+* Detects user proximity using BLE region monitoring
+* Sends contextual notifications (in-app / push / SMS)
+* Displays personalized content cards
+* User opt-in / opt-out and preference control
+* Basic analytics logging for interactions
 
-**Prerequisites:**  Node.js
+---
 
+## 🚀 **Run Locally**
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+**Prerequisite:** Node.js
+
+1. Install dependencies
+
+   ```bash
+   npm install
+   ```
+
+2. Add your Gemini API key in `.env.local`
+
+   ```
+   GEMINI_API_KEY=your_api_key_here
+   ```
+
+3. Start the app
+
+   ```bash
+   npm run dev
+   ```
+
+---
+
+## 🛠 **Tech Stack**
+
+* Next.js / React
+* Tailwind CSS
+* Gemini API
+* BLE scanning (mobile layer)
+
+---
+
+## 📌 **Future Enhancements**
+
+* Multi-floor beacon mapping
+* Admin dashboard
+* Advanced personalization rules
